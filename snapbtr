@@ -325,6 +325,11 @@ def main(argv):
             title='Cleanup',
             description='Try to cleanup until all of the targets are met.')
 
+        target_group.add_argument('--no-cleanup', '-C',
+                                  action = 'store_true',
+                                  help = 'Do not delete any snapshots',
+                                  default = False)
+
         target_group.add_argument('--target-freespace', '-F',
                                   dest='target_freespace',
                             metavar = 'SIZE',
@@ -343,8 +348,6 @@ SIZE is #bytes, or given with K, M, G or T respectively for kilo, ...''')
                                   default = DEFAULT_KEEP_BACKUPS,
                                   help = 'Stop cleaning when K backups remain')
 
-        snap_group_x = parser.add_argument_group(
-            title = 'Snapshotting')
         snap_group = parser.add_mutually_exclusive_group(required=False)
         snap_group.add_argument('--snap', '-s',
                             metavar = 'SUBVOL', default = '/',
@@ -377,10 +380,14 @@ SIZE is #bytes, or given with K, M, G or T respectively for kilo, ...''')
         sys.stdout.write(__doc__)
         return 0
 
-    if pa.target_freespace is None and pa.target_backups is None:
+    if (pa.target_freespace is None and pa.target_backups is None
+            and not pa.no_cleanup):
         parser.error("Set a target, either with: \n"
                      "  --target-freespace, or\n"
                      "  --target-backups")
+
+    if pa.snap is None and pa.no_cleanup:
+        parser.error("Nothing to do: both, snapshots and clean-up are disabled")
 
     if pa.test:
         operations = FakeOperations(path=pa.path,
@@ -404,7 +411,8 @@ SIZE is #bytes, or given with K, M, G or T respectively for kilo, ...''')
     if pa.snap:
         operations.snap(path=pa.snap)
 
-    cleandir(operations=operations, targets=pa)
+    if not pa.no_cleanup:
+        cleandir(operations=operations, targets=pa)
 
 if "__main__" == __name__:
     sys.exit(main(sys.argv))
