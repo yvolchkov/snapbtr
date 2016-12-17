@@ -50,6 +50,7 @@ exploit security-bugs or tamper with the content.
 
 
 import re, math, time, os, os.path, sys, shutil, stat, statvfs
+from colorama import Fore, Back, Style
 
 DATE_FORMAT = '%Y%m%d-%H%M%S' # date format used for directories to clean
 DEFAULT_KEEP_BACKUPS = 2
@@ -76,6 +77,44 @@ def sorted_value(dirs):
     else:
         return _sorted_value(dirs)
 
+def test_quads(items):
+    """
+>>> test_quads((1,2,3,4))
+[(None, 1, 2, 3), (1, 2, 3, 4), (2, 3, 4, None)]
+>>> test_quads((1,2,3))
+[(None, 1, 2, 3), (1, 2, 3, None)]
+>>> test_quads((1,2))
+[(None, 1, 2, None)]
+>>> test_quads((1,2,3,4,5))
+[(None, 1, 2, 3), (1, 2, 3, 4), (2, 3, 4, 5), (3, 4, 5, None)]
+    """
+    return list((i) for i in quads(items))
+
+def quads(items):
+    rest = iter(items)
+    before = None
+    a = rest.next()
+    b = rest.next()
+    for next in rest:
+        yield (before, a, b, next)
+        before = a
+        a = b
+        b = next
+    yield(before, a, b, None)
+
+def test_sorted_value(dirs):
+    """
+>>> test_sorted_value(('20101201-000000', '20101201-010000', '20101201-020000', \
+    '20101201-030000', '20101201-040000', '20101201-050000', '20101201-060000', \
+    '20101201-070000', '20101201-080000'))
+['20101201-010000', '20101201-030000', '20101201-050000', '20101201-070000', \
+'20101201-020000', '20101201-060000', '20101201-040000', '20101201-000000']
+>>> test_sorted_value(('20161216-214958',  '20161216-215350',  '20161216-222151',\
+  '20161216-222154', '20161217-133217'))
+['20161216-222151', '20161216-215350', '20161216-222154', '20161217-133217']
+    """
+    return list((i) for i in _sorted_value(dirs))
+
 def _sorted_value(dirs):
     """Iterate dirs, sorted by their relative value when deleted"""
     def poles(items):
@@ -95,15 +134,15 @@ def _sorted_value(dirs):
 
     # Remaining candidates for yield,
     # except the "max" one (latest)
-    candidates = dict(
-        all_but_last((x, xf)
-                     for xf, x
-                     in sorted((timef(y), y) for y in dirs)
-                     if xf))
+    candidates = dict((x, xf)
+                      for xf, x
+                      in sorted((timef(y), y) for y in dirs)
+                      if xf)
     # Keep going as long as there is anything to remove
-    while len(candidates) > 1:
+    while len(candidates) > 2:
         # Get candidates ordered by timestamp (as v is monitonic in timestamp)
         remain = sorted((v, k) for k, v in candidates.iteritems())
+        newest_element = remain[-1][1]
         # Find the "amount of information we loose by deleting the
         # latest of the pair"
         diffs = list((to_tf - frm_tf, frm, to)
@@ -112,8 +151,50 @@ def _sorted_value(dirs):
         # Select the least important one
         mdiff, mfrm, mto = min(diffs)
 
-        del candidates[mto] # That's not a candidate any longer, it's gonna go
-        yield mto
+        for (__before, a, b, __after) in quads(remain):
+            # A bit of math mess here, so some explanation of variables
+            # meaning would not hurt:
+            #    a[0] - logarithmic timestamp
+            #    a[1] - text timestemp
+            #    mfrm - text timestemp of the 1st dir in the pair
+            #    mfto - text timestemp of the 2nd dir in the pair
+            before = __before[1] if __before else None
+            after = __after[1] if __after else None
+
+            # Now we have found a pair with the smallest logarithmic
+            # distance. We need to kill one from this pair. Who is
+            # going to be a victim? Following rules apply:
+            # 1) It should not be the oldest or newest ever backup
+            # 2) The new gap has to be the smallest. Is the resulting
+            #    distance smaller then it would be if we choose
+            #    another one?
+            if a[1] == mfrm:
+                if b[1] != mto:
+                    raise Exception("unexpected candidate")
+                if not after:
+                    mkill = mfrm
+                elif not before:
+                    mkill = mto
+                else:
+                    diff_before = candidates[mfrm] - candidates[before]
+                    diff_after = candidates[after] - candidates[mto]
+                    mkill = mto if diff_after < diff_before else mfrm
+                break
+        # Uncomment to visualize the algorithm
+        # cand_str = ""
+        # for (i,j) in remain:
+        #     if j == mkill:
+        #         j = Fore.RED + j + Fore.RESET
+        #     elif j == mfrm or j == mto:
+        #         j = Fore.GREEN + j + Fore.RESET
+        #     cand_str += j + " "
+        # print cand_str
+
+        if mkill == newest_element:
+            # Protect ourselves. Last backup should not ever be deleted
+            raise Exception("attempt to kill the newest backup")
+        del candidates[mkill] # That's not a candidate any longer, it's gonna go
+        yield mkill
 
     # Auch, we must delete the last entry
     yield candidates.iterkeys().next()
@@ -415,4 +496,8 @@ SIZE is #bytes, or given with K, M, G or T respectively for kilo, ...''')
         cleandir(operations=operations, targets=pa)
 
 if "__main__" == __name__:
-    sys.exit(main(sys.argv))
+    if "--doctest" in sys.argv:
+        import doctest
+        sys.exit(doctest.testmod())
+    else:
+        sys.exit(main(sys.argv))
