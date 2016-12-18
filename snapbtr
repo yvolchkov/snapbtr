@@ -276,6 +276,65 @@ class FakeOperations(Operations):
         self.trace("freespace() = %s", self.space)
         return self.space
 
+def test_cleandir(free, backups, keep=DEFAULT_KEEP_BACKUPS):
+    """
+>>> test_cleandir(None, 3)
+(29, ['20101130-000000', '20101204-040000', '20101208-080000'])
+
+>>> test_cleandir(13, None)
+(14, ['20101130-000000', '20101202-020000', '20101204-040000',\
+ '20101206-060000', '20101207-070000', '20101208-080000'])
+
+>>> test_cleandir(13, 7)
+(14, ['20101130-000000', '20101202-020000', '20101204-040000',\
+ '20101206-060000', '20101207-070000', '20101208-080000'])
+
+>>> test_cleandir(13, 5)
+(21, ['20101130-000000', '20101202-020000', '20101204-040000',\
+ '20101206-060000', '20101208-080000'])
+
+>>> test_cleandir(15, 7)
+(21, ['20101130-000000', '20101202-020000', '20101204-040000',\
+ '20101206-060000', '20101208-080000'])
+
+>>> test_cleandir(30, None)
+Reached number of backups to keep:  2
+(33, ['20101130-000000', '20101208-080000'])
+
+>>> test_cleandir(None, 5, 6)
+Reached number of backups to keep:  6
+(14, ['20101130-000000', '20101202-020000', '20101204-040000',\
+ '20101206-060000', '20101207-070000', '20101208-080000'])
+    """
+    class targets_container:
+        def __init__(self, keep, free, backups):
+            self.keep_backups = keep
+            self.target_freespace = free
+            self.target_backups = backups
+
+    use_trace = None
+    # use_trace = default_trace
+    ops = FakeOperations(path='.',
+                         trace=use_trace,
+                         dirs={
+                             '20101130-000000': 0,
+                             '20101201-010000': 1,
+                             '20101202-020000': 2,
+                             '20101203-030000': 3,
+                             '20101204-040000': 4,
+                             '20101205-050000': 5,
+                             '20101206-060000': 6,
+                             '20101207-070000': 7,
+                             '20101208-080000': 8,
+                         },
+                         space=5)
+    targets = targets_container(keep, free, backups)
+
+    cleandir(ops, targets)
+    dirs_remained = sorted((i) for (i, j) in ops.dirs.iteritems())
+    new_free = ops.space
+    return (new_free, dirs_remained)
+
 def cleandir(operations, targets):
     """Perform actual cleanup using 'operations' until 'targets' are met"""
     trace = operations.trace
@@ -310,7 +369,7 @@ def cleandir(operations, targets):
             #print "+++ ", fsp, target_fsp, fsp >= target_fsp
             if fsp >= target_fsp:
                 trace("Satisfied freespace target: %s with %s",
-                          fsp, target_fsp)
+                      fsp, target_fsp)
                 target_fsp = None
                 do_del = False
             else:
@@ -427,9 +486,6 @@ SIZE is #bytes, or given with K, M, G or T respectively for kilo, ...''')
                             help = 'Disable snapshot taking',
                             action = 'store_const', const = None)
 
-        parser.add_argument('--test', help = 'Execute built-in test',
-                            action='store_true')
-
         parser.add_argument('--explain',
                             help = 'Explain what %(prog)s does (and stop)',
                             action='store_true')
@@ -459,24 +515,7 @@ SIZE is #bytes, or given with K, M, G or T respectively for kilo, ...''')
     if pa.snap is None and pa.no_cleanup:
         parser.error("Nothing to do: both, snapshots and clean-up are disabled")
 
-    if pa.test:
-        operations = FakeOperations(path=pa.path,
-                                    trace=trace,
-                                    dirs={
-                                        '20101201-000000': 0,
-                                        '20101201-010000': 1,
-                                        '20101201-020000': 2,
-                                        '20101201-030000': 3,
-                                        '20101201-040000': 4,
-                                        '20101201-050000': 5,
-                                        '20101201-060000': 6,
-                                        '20101201-070000': 7,
-                                        '20101201-080000': 8,
-                                    },
-                                    space=5)
-
-    else:
-        operations = Operations(path=pa.path, trace=trace)
+    operations = Operations(path=pa.path, trace=trace)
 
     if pa.snap:
         operations.snap(path=pa.snap)
