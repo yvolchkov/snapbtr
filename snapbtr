@@ -282,8 +282,6 @@ def cleandir(operations, targets):
     keep_backups = targets.keep_backups
     target_fsp = targets.target_freespace
     target_backups = targets.target_backups
-    was_above_target_freespace = None
-    was_above_target_backups = None
     last_dirs = []
     def first(it):
         for x in it:
@@ -311,30 +309,21 @@ def cleandir(operations, targets):
             fsp = operations.freespace()
             #print "+++ ", fsp, target_fsp, fsp >= target_fsp
             if fsp >= target_fsp:
-                if (was_above_target_freespace or
-                        was_above_target_freespace is None):
-                    trace("Satisfied freespace target: %s with %s",
+                trace("Satisfied freespace target: %s with %s",
                           fsp, target_fsp)
-                    was_above_target_freespace = False
-                if do_del is None:
-                    do_del = False
+                target_fsp = None
+                do_del = False
             else:
-                if was_above_target_freespace is None:
-                    was_above_target_freespace = True
                 do_del = True
 
         if target_backups is not None:
             if dirs_len <= target_backups:
-                if (was_above_target_backups or
-                        was_above_target_backups is None):
-                    trace("Satisfied target number of backups: %s with %s",
-                          target_backups, dirs_len)
-                    was_above_target_backups = False
+                trace("Satisfied target number of backups: %s with %s",
+                      target_backups, dirs_len)
+                target_backups = None
                 if do_del is None:
                     do_del = False
             else:
-                if was_above_target_backups is None:
-                    was_above_target_backups = True
                 do_del = True
 
         if not do_del:
