@@ -51,6 +51,7 @@ exploit security-bugs or tamper with the content.
 
 import re, math, time, os, os.path, sys, shutil, stat, statvfs
 from colorama import Fore, Back, Style
+from datetime import datetime, timedelta
 
 DATE_FORMAT = '%Y%m%d-%H%M%S' # date format used for directories to clean
 DEFAULT_KEEP_BACKUPS = 2
@@ -320,6 +321,7 @@ Reached number of backups to keep:  6
             self.keep_backups = keep
             self.target_freespace = free
             self.target_backups = backups
+            self.preserve_days = 0
 
     use_trace = None
     # use_trace = default_trace
@@ -344,12 +346,53 @@ Reached number of backups to keep:  6
     new_free = ops.space
     return (new_free, dirs_remained)
 
+def test_filter_out_ndays(dirs, ndays, now_ts):
+    """
+>>> test_filter_out_ndays(('20101201-000000', '20101202-000000',\
+ '20101203-000000', '20101204-000000', '20101205-000000',\
+ '20101206-000000', '20101207-000000', '20101208-000000',\
+ '20101209-000000'), ndays=3, now_ts='20101209-000000')
+('20101201-000000', '20101202-000000', '20101203-000000', '20101204-000000',\
+ '20101205-000000')
+
+>>> test_filter_out_ndays(('20101201-000000', '20101202-000000',\
+ '20101203-000000', '20101204-000000', '20101205-000000',\
+ '20101206-000000', '20101207-000000', '20101208-000000',\
+ '20101209-000000'), ndays=3, now_ts='20101209-000001')
+('20101201-000000', '20101202-000000', '20101203-000000', '20101204-000000',\
+ '20101205-000000', '20101206-000000')
+
+>>> test_filter_out_ndays(('20101201-000000', '20101202-000000',\
+ '20101203-000000', '20101204-000000', '20101205-000000',\
+ '20101206-000000', '20101207-000000', '20101208-000000',\
+ '20101209-000000'), ndays=1, now_ts='20101209-100001')
+('20101201-000000', '20101202-000000', '20101203-000000', '20101204-000000',\
+ '20101205-000000', '20101206-000000', '20101207-000000', '20101208-000000')
+    """
+    ops = Operations(path = '.', trace = None)
+    return filter_out_ndays(ops, dirs, ndays, now_ts)
+
+def filter_out_ndays(ops, dirs, ndays, now_ts=None):
+    """
+    """
+    def is_before(dir_name):
+        return datetime.strptime(dir_name, DATE_FORMAT) < ndays_before
+
+    if now_ts is None:
+        now_ts = ops.datestamp()
+
+    now = datetime.strptime(now_ts, DATE_FORMAT)
+    ndays_before = now - timedelta(days = ndays)
+    # print ndays_before
+    return filter(is_before, dirs)
+
 def cleandir(operations, targets):
     """Perform actual cleanup using 'operations' until 'targets' are met"""
     trace = operations.trace
     keep_backups = targets.keep_backups
     target_fsp = targets.target_freespace
     target_backups = targets.target_backups
+    preserve_days = targets.preserve_days
     last_dirs = []
     def first(it):
         for x in it:
@@ -357,6 +400,10 @@ def cleandir(operations, targets):
 
     victims_list = None
     dirs = sorted(operations.listdir())
+
+    if preserve_days != 0:
+        dirs = filter_out_ndays(operations, dirs, preserve_days)
+
     while True:
         do_del = None
         dirs_len = len(dirs)
@@ -493,6 +540,12 @@ SIZE is #bytes, or given with K, M, G or T respectively for kilo, ...''')
                             metavar = '#', type = int,
                                   default = DEFAULT_KEEP_BACKUPS,
                                   help = 'Stop cleaning when K backups remain')
+        target_group.add_argument('--preserve-days', '-P',
+                                  metavar = 'DAYS_N',
+                                  default = 0, type = int,
+                                  help = '''Backups which are taken
+                                  within DAYS_N last days are
+                                  untouchable''')
 
         snap_group = parser.add_mutually_exclusive_group(required=False)
         snap_group.add_argument('--snap', '-s',
