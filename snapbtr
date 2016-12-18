@@ -108,10 +108,10 @@ def test_sorted_value(dirs):
     '20101201-030000', '20101201-040000', '20101201-050000', '20101201-060000', \
     '20101201-070000', '20101201-080000'))
 ['20101201-010000', '20101201-030000', '20101201-050000', '20101201-070000', \
-'20101201-020000', '20101201-060000', '20101201-040000', '20101201-000000']
+'20101201-020000', '20101201-060000', '20101201-040000']
 >>> test_sorted_value(('20161216-214958',  '20161216-215350',  '20161216-222151',\
   '20161216-222154', '20161217-133217'))
-['20161216-222151', '20161216-215350', '20161216-222154', '20161217-133217']
+['20161216-222151', '20161216-215350', '20161216-222154']
     """
     return list((i) for i in _sorted_value(dirs))
 
@@ -195,9 +195,6 @@ def _sorted_value(dirs):
             raise Exception("attempt to kill the newest backup")
         del candidates[mkill] # That's not a candidate any longer, it's gonna go
         yield mkill
-
-    # Auch, we must delete the last entry
-    yield candidates.iterkeys().next()
 
 def freespace(path):
     st = os.statvfs(path)
