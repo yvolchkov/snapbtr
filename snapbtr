@@ -343,9 +343,10 @@ def cleandir(operations, targets):
         for x in it:
             return x
 
+    victims_list = None
+    dirs = sorted(operations.listdir())
     while True:
         do_del = None
-        dirs = sorted(operations.listdir())
         dirs_len = len(dirs)
         if dirs_len <= 0:
             raise Exception("No more directories to clean")
@@ -354,7 +355,7 @@ def cleandir(operations, targets):
             raise Exception("No directories removed")
             break
         else:
-            last_dirs = dirs
+            last_dirs = dirs[:]
 
         if keep_backups is not None:
             if dirs_len <= keep_backups:
@@ -385,13 +386,20 @@ def cleandir(operations, targets):
         if not do_del:
             break
 
-        next_del = first(sorted_value(dirs))
-        if next_del is None:
-            trace("No more backups left")
-            break
-        else:
-            operations.unsnap(next_del)
+        if victims_list is None:
+            victims_list = sorted_value(dirs)
 
+        try:
+            next_del = victims_list.next()
+        except StopIteration:
+            trace("Can not satisfy targets - no more victims left")
+            break
+
+        if not next_del in dirs:
+            raise(Exception("victim is not in the directories list"))
+
+        dirs.remove(next_del)
+        operations.unsnap(next_del)
 
 def default_trace(fmt, *args, **kwargs):
     if args is not None:
