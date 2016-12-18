@@ -273,6 +273,18 @@ class FakeOperations(Operations):
         self.trace("freespace() = %s", self.space)
         return self.space
 
+class DryrunOperations(Operations):
+    def snap(self, path):
+        path = os.path.join(self.path, self.datestamp())
+        if os.path.commonprefix((path, os.getcwd())) != '/':
+            path = os.path.relpath(path)
+        print(Fore.GREEN + "+ " + path + Fore.RESET)
+    def unsnap(self, dir):
+        path = os.path.join(self.path, dir)
+        if os.path.commonprefix((path, os.getcwd())) != '/':
+            path = os.path.relpath(path)
+        print(Fore.RED + "- " + path + Fore.RESET)
+
 def test_cleandir(free, backups, keep=DEFAULT_KEEP_BACKUPS):
     """
 >>> test_cleandir(None, 3)
@@ -396,7 +408,7 @@ def cleandir(operations, targets):
             break
 
         if not next_del in dirs:
-            raise(Exception("victim is not in the directories list"))
+            raise Exception("victim is not in the directories list")
 
         dirs.remove(next_del)
         operations.unsnap(next_del)
@@ -497,6 +509,10 @@ SIZE is #bytes, or given with K, M, G or T respectively for kilo, ...''')
 
         parser.add_argument('--verbose', help = 'Verbose output',
                             action='store_true')
+        parser.add_argument('--dry-run',
+                            help = 'Do nothing, report what would have happen',
+                            default = False,
+                            action='store_true')
 
         pa = parser.parse_args(argv[1:])
         return pa, parser
@@ -520,7 +536,12 @@ SIZE is #bytes, or given with K, M, G or T respectively for kilo, ...''')
     if pa.snap is None and pa.no_cleanup:
         parser.error("Nothing to do: both, snapshots and clean-up are disabled")
 
-    operations = Operations(path=pa.path, trace=trace)
+    if pa.dry_run:
+        if pa.target_freespace:
+            parser.error("--dry-run with --target_freespace is not supported")
+        operations = DryrunOperations(path=pa.path, trace=trace)
+    else:
+        operations = Operations(path=pa.path, trace=trace)
 
     if pa.snap:
         operations.snap(path=pa.snap)
