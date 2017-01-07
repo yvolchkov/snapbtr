@@ -1,0 +1,11 @@
+snapbtr.pyc
+.*
+
+*.orig
+*~
+\#*#
+
+!.gitignore
+/snapbtr.egg-info/
+/build/
+/dist/
