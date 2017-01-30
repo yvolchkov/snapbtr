@@ -13,5 +13,6 @@ setup(
         'Development Status :: 3 - Alpha',
         'Topic :: System :: Filesystems',
         'Intended Audience :: System Administrators',
+        'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
     ]
 )
