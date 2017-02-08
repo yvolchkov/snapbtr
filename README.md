@@ -2,18 +2,22 @@
 
 snapbtr is a small utility that keeps snapshots of btrfs filesystems.
 
+It is originally written by Helge Jensen
+(https://btrfs.wiki.kernel.org/index.php/SnapBtr). Re-published under
+the GPLv3 with his consent and blessing.
+
 You can run it regularly (for example in a small script in
 cron.hourly), or once in a while, to maintain an "interesting" (see
 below) set of snapshots (backups). You may manually add or remove
 snapshots as you like, use 'snapbtr.DATE_FORMAT' (in GMT) as
 snapshot-name.
 
-It will keep at most --target-backups snapshots and ensure that
+It will keep --target-backups snapshots and ensure that
 --target-freespace is available on the file-system by selecting
 snapshots to remove.
 
-Using --keep-backups, you can ensure that at least some backups are
-kept, even if --target-freespace cannot be satisfied.
+Using --keep-backups and --preserve-days, you can ensure that at least
+some backups are kept, even if --target-freespace cannot be satisfied.
 
 snapnbtr will keep backups with exponentially increasing distance as
 you go back in time. It does this by selecting snapshots to remove as
@@ -30,16 +34,22 @@ while older pairs will have high value if they are far apart.
 The mechanism is completely self-contained and you can delete any
 snapshot manually or any files in the snapshots.
 
-I personally install snapbtr.py into /var/backups/snapbtr which is
-only accessible to root and run it from a small script in
-cron.hourly. I also install the kernel-nfs-server package and
-nfs-export /var/backups/snapbtr in /etc/exports:
+Root permissions are not required for _creating_ snapshot, if user has
+an ownership of the subvolume. This makes it possible to run "snapbtr
+-C" from a user application prior any modification done by this
+application (e.g. snapshot a maildir before receiving new emails). And
+periodically run "snapbtr -S" as root to cleanup.
 
-  /var/backups/snapbtr/     127.0.0.1(ro,no_root_squash,async,no_subtree_check)
 
-and mount it at /mnt/restore, in /etc/fstab:
+# Install
 
-  localhost:/var/backups/snapbtr/ /mnt/restore nfs _netdev,nosuid,rsize=8192,hard,intr,ro  0 2
+```
+sudo python2 setup.py install
+```
 
-That way, all users can use the backups in /mnt/restore, but cannot
-exploit security-bugs or tamper with the content.
+# Authors
+
+* Helge Jensen <hej@actua.dk>
+* Yuri Volchkov <yuri.volchkov@gmail.com>
+
+Licensed under GPLv3 (or later) <http://www.gnu.org/licenses/gpl-3.0.txt>
