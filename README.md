@@ -12,12 +12,11 @@ below) set of snapshots (backups). You may manually add or remove
 snapshots as you like, use 'snapbtr.DATE_FORMAT' (in GMT) as
 snapshot-name.
 
-It will keep --target-backups snapshots and ensure that
---target-freespace is available on the file-system by selecting
-snapshots to remove.
+It will keep --target-backups snapshots on the file-system by
+selecting snapshots to remove.
 
-Using --keep-backups and --preserve-days, you can ensure that at least
-some backups are kept, even if --target-freespace cannot be satisfied.
+Using --preserve-days, you can ensure that the most recent snapshots,
+which are taken within last N days are not deleted.
 
 snapnbtr will keep backups with exponentially increasing distance as
 you go back in time. It does this by selecting snapshots to remove as
@@ -36,10 +35,25 @@ snapshot manually or any files in the snapshots.
 
 Root permissions are not required for _creating_ snapshot, if user has
 an ownership of the subvolume. This makes it possible to run "snapbtr
--C" from a user application prior any modification done by this
+-s" from a user application prior any modification done by this
 application (e.g. snapshot a maildir before receiving new emails). And
-periodically run "snapbtr -S" as root to cleanup.
+periodically run "snapbtr -c" as root to cleanup.
 
+# Examples
+Snapshot maildir before synchronization
+```
+snapbtr -s ~/email/store ~/email/backups
+```
+
+From all the backups which older then 5 days, keep only 100.
+```
+./snapbtr -c /mnt/backups  --target-backups 100 --preserve-days 5
+```
+
+Do the same, but create the snapshot at first
+```
+./snapbtr -cs ~/email/store ~/email/backups  --target-backups 100 --preserve-days 5
+```
 
 # Install
 

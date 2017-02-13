@@ -286,11 +286,11 @@ def test_cleandir(free, backups, keep=DEFAULT_KEEP_BACKUPS, preserve=0):
  '20101206-060000', '20101208-080000'])
 
 >>> test_cleandir(30, None)
-Reached number of backups to keep:  2
+Reached the minimum number of backups to keep (2)
 (33, ['20101130-000000', '20101208-080000'])
 
 >>> test_cleandir(None, 5, 6)
-Reached number of backups to keep:  6
+Reached the minimum number of backups to keep (6)
 (14, ['20101130-000000', '20101202-020000', '20101204-040000',\
  '20101206-060000', '20101207-070000', '20101208-080000'])
 
@@ -412,7 +412,8 @@ def cleandir(operations, targets):
 
         if keep_backups is not None:
             if dirs_len <= keep_backups:
-                print("Reached number of backups to keep: ", dirs_len)
+                print("Reached the minimum number of backups to keep (%s)" %
+                      keep_backups)
                 break
 
         if target_fsp is not None:
@@ -482,71 +483,81 @@ def main(argv):
             else:
                 raise "Invalid value: %s, expected: %s" % (target_str, form)
 
-
         parser = argparse.ArgumentParser(
-            description = 'keeps btrfs snapshots for backup',
-            #formatter_class = argparse.ArgumentDefaultsHelpFormatter
+            description='Create and kill btrfs snapshots',
+            formatter_class=argparse.ArgumentDefaultsHelpFormatter
             )
 
-        parser.add_argument('--path', '-p', metavar = 'PATH',
-                            help = 'Path for snapshots and cleanup',
-                            default = '.')
+        parser.add_argument('subvolume', nargs='?', default=None,
+                            help='Path to backuping subvolume')
+        parser.add_argument('snapshots_dir',
+                            help='Path to snapshots folder')
 
-        target_group = parser.add_argument_group(
-            title='Cleanup',
-            description='Try to cleanup until all of the targets are met.')
+        parser.add_argument('-c', '--do-clean', action='store_true',
+                            default=False)
+        parser.add_argument('-s', '--do-snap', action='store_true',
+                            default=False)
 
-        target_group.add_argument('--no-cleanup', '-C',
-                                  action = 'store_true',
-                                  help = 'Do not delete any snapshots',
-                                  default = False)
+        parser.add_argument('-b', '--target-backups',
+                            metavar='', type=int,
+                            help=
+                            'Cleanup PATH until at most B backups remain')
 
-        target_group.add_argument('--target-freespace', '-F',
-                                  dest='target_freespace',
-                                  metavar = 'SIZE',
-                                  default = None,
-                                  help = '''Cleanup PATH until at
-                                  least SIZE is free. SIZE is #bytes,
-                                  or given with K, M, G or T
-                                  respectively for kilo, ...''')
-
-        target_group.add_argument('--target-backups', '-B',
-                                  dest='target_backups',
-                                  metavar = '#', type = int,
-                                  help =
-                                  'Cleanup PATH until at most B backups remain')
-        target_group.add_argument('--keep-backups', '-K',
-                            metavar = '#', type = int,
-                                  default = DEFAULT_KEEP_BACKUPS,
-                                  help = 'Stop cleaning when K backups remain')
-        target_group.add_argument('--preserve-days', '-P',
-                                  metavar = 'DAYS_N',
-                                  default = 0, type = int,
-                                  help = '''Backups which are taken
-                                  within DAYS_N last days are
-                                  untouchable''')
-
-        snap_group = parser.add_mutually_exclusive_group(required=False)
-        snap_group.add_argument('--snap', '-s',
-                            metavar = 'SUBVOL', default = '/',
-                            help = 'Take snapshot of SUBVOL on invocation')
-        snap_group.add_argument('--no-snap', '-S',
-                            dest = 'snap',
-                            help = 'Disable snapshot taking',
-                            action = 'store_const', const = None)
-
-        parser.add_argument('--verbose', help = 'Verbose output',
+        parser.add_argument('-v', '--verbose', help='Verbose output',
                             action='store_true')
         parser.add_argument('--dry-run',
-                            help = 'Do nothing, report what would have happen',
-                            default = False,
+                            help='Do nothing, report what would have happen',
+                            default=False,
                             action='store_true')
+        parser.add_argument('--preserve-days', '-P',
+                            metavar='DAYS_N',
+                            default=0, type=int,
+                            help='''Backups which are taken within
+                            DAYS_N last days are untouchable''')
+
+        # TODO:
+        # The target-freespace makes little sense in its current
+        # implementation, because it checks if condition is met right
+        # after removing a snapshot. However, the space freed from
+        # removing the snapshot does not appeared in the <df> output
+        # right away. Btrfs has to do some background work to make it
+        # happen.
+        #
+        # Just disable option for now. Lets figure out later, whether
+        # to remove this functionality, or implement extremely slow
+        # version, which waits for background process to be finished
+        # after killing every snapshot.
+
+        # target_group.add_argument('--target-freespace', '-F',
+        #                           dest='target_freespace',
+        #                           metavar = 'SIZE',
+        #                           default = None,
+        #                           help = '''Cleanup PATH until at
+        #                           least SIZE is free. SIZE is #bytes,
+        #                           or given with K, M, G or T
+        #                           respectively for kilo, ...''')
+
+        # TODO: Now, without --target-freespace, --target-backups and
+        # --keep-backups have the same meaning. One of them is disabled for now
+        #
+        # parser.add_argument('-k', '--keep-backups', type = int,
+        #                     default = DEFAULT_KEEP_BACKUPS,
+        #                     help = '''How many snapshots should
+        #                     stay. Minimum 2: the oldest and newest
+        #                     backups are always kept''')
 
         pa = parser.parse_args(argv[1:])
 
-        if pa.target_freespace:
-            pa.target_freespace = parse_target_freespace(pa.target_freespace)
+        # Temporary stub disabled options
+        pa.target_freespace = None
+        pa.keep_backups = 2
+
+        # TODO: uncomment when --target-freespace is enabled again
+        # if pa.target_freespace:
+        #     pa.target_freespace = parse_target_freespace(pa.target_freespace)
+
         return pa, parser
+
 
     pa, parser = args()
 
@@ -556,25 +567,22 @@ def main(argv):
         trace = None
 
     if (pa.target_freespace is None and pa.target_backups is None
-            and not pa.no_cleanup):
-        parser.error("Set a target, either with: \n"
-                     "  --target-freespace, or\n"
-                     "  --target-backups")
-
-    if pa.snap is None and pa.no_cleanup:
-        parser.error("Nothing to do: both, snapshots and clean-up are disabled")
+            and pa.do_clean):
+        parser.error("Set a target, with --target-backups")
 
     if pa.dry_run:
-        if pa.target_freespace:
-            parser.error("--dry-run with --target_freespace is not supported")
-        operations = DryrunOperations(path=pa.path, trace=trace)
+        # if pa.target_freespace:
+        #     parser.error("--dry-run with --target_freespace is not supported")
+        operations = DryrunOperations(path=pa.snapshots_dir, trace=trace)
     else:
-        operations = Operations(path=pa.path, trace=trace)
+        operations = Operations(path=pa.snapshots_dir, trace=trace)
 
-    if pa.snap:
-        operations.snap(path=pa.snap)
+    if pa.do_snap:
+        if pa.subvolume == None:
+            parser.error("--do-snap requires subvolume")
+        operations.snap(path=pa.subvolume)
 
-    if not pa.no_cleanup:
+    if pa.do_clean:
         cleandir(operations=operations, targets=pa)
 
 if "__main__" == __name__:
