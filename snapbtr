@@ -246,7 +246,8 @@ class FakeOperations(Operations):
                  trace=None,
                  dirs=None,
                  space=None,
-                 snap_space=None):
+                 snap_space=None,
+                 time_now=None):
         Operations.__init__(self, path=path, trace=trace)
         if dirs is None:
             dirs = {}
@@ -257,6 +258,7 @@ class FakeOperations(Operations):
         if snap_space is None:
             snap_space = 1
         self.snap_space = snap_space
+        self.time_now = time_now
 
     def snap(self, path):
         self.trace("snap(%s)", path)
@@ -273,6 +275,11 @@ class FakeOperations(Operations):
     def freespace(self):
         self.trace("freespace() = %s", self.space)
         return self.space
+    def datestamp(self):
+        if not self.time_now:
+            return super(FakeOperations, self).datestamp()
+        else:
+            return self.time_now
 
 class DryrunOperations(Operations):
     def snap(self, path):
@@ -286,7 +293,7 @@ class DryrunOperations(Operations):
             path = os.path.relpath(path)
         print(Fore.RED + "- " + path + Fore.RESET)
 
-def test_cleandir(free, backups, keep=DEFAULT_KEEP_BACKUPS):
+def test_cleandir(free, backups, keep=DEFAULT_KEEP_BACKUPS, preserve=0):
     """
 >>> test_cleandir(None, 3)
 (29, ['20101130-000000', '20101204-040000', '20101208-080000'])
@@ -315,13 +322,28 @@ Reached number of backups to keep:  2
 Reached number of backups to keep:  6
 (14, ['20101130-000000', '20101202-020000', '20101204-040000',\
  '20101206-060000', '20101207-070000', '20101208-080000'])
+
+# Here backup N8 is immutable - it stays anyways. Plus, we requested to
+# keep 3 more backups
+>>> test_cleandir(None, 3, preserve = 1)
+(22, ['20101130-000000', '20101204-040000', '20101207-070000', '20101208-080000'])
+
+>>> test_cleandir(None, 3, preserve = 2)
+(16, ['20101130-000000', '20101204-040000', '20101206-060000', \
+'20101207-070000', '20101208-080000'])
+
+>>> test_cleandir(None, 3, preserve = 7)
+Reached number of backups to keep:  2
+(5, ['20101130-000000', '20101201-010000', '20101202-020000', \
+'20101203-030000', '20101204-040000', '20101205-050000', \
+'20101206-060000', '20101207-070000', '20101208-080000'])
     """
     class targets_container:
-        def __init__(self, keep, free, backups):
+        def __init__(self, keep, free, backups, preserve):
             self.keep_backups = keep
             self.target_freespace = free
             self.target_backups = backups
-            self.preserve_days = 0
+            self.preserve_days = preserve
 
     use_trace = None
     # use_trace = default_trace
@@ -338,8 +360,9 @@ Reached number of backups to keep:  6
                              '20101207-070000': 7,
                              '20101208-080000': 8,
                          },
-                         space=5)
-    targets = targets_container(keep, free, backups)
+                         space=5,
+                         time_now='20101208-080000')
+    targets = targets_container(keep, free, backups, preserve)
 
     cleandir(ops, targets)
     dirs_remained = sorted((i) for (i, j) in ops.dirs.iteritems())
@@ -369,7 +392,7 @@ def test_filter_out_ndays(dirs, ndays, now_ts):
 ('20101201-000000', '20101202-000000', '20101203-000000', '20101204-000000',\
  '20101205-000000', '20101206-000000', '20101207-000000', '20101208-000000')
     """
-    ops = Operations(path = '.', trace = None)
+    ops = Operations(path='.', trace=None)
     return filter_out_ndays(ops, dirs, ndays, now_ts)
 
 def filter_out_ndays(ops, dirs, ndays, now_ts=None):
@@ -382,7 +405,7 @@ def filter_out_ndays(ops, dirs, ndays, now_ts=None):
         now_ts = ops.datestamp()
 
     now = datetime.strptime(now_ts, DATE_FORMAT)
-    ndays_before = now - timedelta(days = ndays)
+    ndays_before = now - timedelta(days=ndays)
     # print ndays_before
     return filter(is_before, dirs)
 
