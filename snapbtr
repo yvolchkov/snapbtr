@@ -304,10 +304,8 @@ Reached the minimum number of backups to keep (6)
 '20101207-070000', '20101208-080000'])
 
 >>> test_cleandir(None, 3, preserve = 7)
-Reached number of backups to keep:  2
-(5, ['20101130-000000', '20101201-010000', '20101202-020000', \
-'20101203-030000', '20101204-040000', '20101205-050000', \
-'20101206-060000', '20101207-070000', '20101208-080000'])
+Traceback (most recent call last):
+SystemExit: Number of backups is less then requested to keep
     """
     class targets_container:
         def __init__(self, keep, free, backups, preserve):
@@ -397,6 +395,8 @@ def cleandir(operations, targets):
 
     if preserve_days != 0:
         dirs = filter_out_ndays(operations, dirs, preserve_days)
+    if len(dirs) <= targets.target_backups:
+        sys.exit("Number of backups is less then requested to keep")
 
     while True:
         do_del = None
@@ -569,6 +569,9 @@ def main(argv):
     if (pa.target_freespace is None and pa.target_backups is None
             and pa.do_clean):
         parser.error("Set a target, with --target-backups")
+
+    if pa.do_clean and pa.target_backups < 2:
+        parser.error("--target-backups can not be less then 2")
 
     if pa.dry_run:
         # if pa.target_freespace:
