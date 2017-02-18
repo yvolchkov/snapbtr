@@ -200,9 +200,15 @@ class Operations:
                 if timef(d)]
     def snap(self, subvol_path):
         import subprocess
+
+        new_snap_path = os.path.join(self.snap_dir, self.datestamp())
+        if os.path.exists(new_snap_path):
+            raise Exception("Snapshot " + new_snap_path +
+                            " already exists " +
+                            "(making snapshots too fast?)")
+
         args = ["btrfs", "subvolume", "snapshot",
-                subvol_path,
-                os.path.join(self.snap_dir, self.datestamp())]
+                subvol_path, new_snap_path]
         self.check_call(args)
     def datestamp(self):
         return time.strftime(DATE_FORMAT, time.gmtime(None))
