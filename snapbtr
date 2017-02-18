@@ -291,7 +291,7 @@ def test_cleandir(free, backups, keep=DEFAULT_KEEP_BACKUPS, preserve=0):
 (21, ['20101130-000000', '20101202-020000', '20101204-040000',\
  '20101206-060000', '20101208-080000'])
 
->>> test_cleandir(30, None)
+>>> test_cleandir(34, None)
 Reached the minimum number of backups to keep (2)
 (33, ['20101130-000000', '20101208-080000'])
 
@@ -416,12 +416,6 @@ def cleandir(operations, targets):
         else:
             last_dirs = dirs[:]
 
-        if keep_backups is not None:
-            if dirs_len <= keep_backups:
-                print("Reached the minimum number of backups to keep (%s)" %
-                      keep_backups)
-                break
-
         if target_fsp is not None:
             fsp = operations.freespace()
             #print "+++ ", fsp, target_fsp, fsp >= target_fsp
@@ -445,6 +439,12 @@ def cleandir(operations, targets):
 
         if not do_del:
             break
+
+        if keep_backups is not None:
+            if dirs_len <= keep_backups:
+                print("Reached the minimum number of backups to keep (%s)" %
+                      keep_backups)
+                break
 
         if victims_list is None:
             victims_list = sorted_value(dirs)
