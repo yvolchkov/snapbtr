@@ -175,7 +175,7 @@ def freespace(path):
 class Operations:
     def __init__(self, path, trace=None):
         self.tracef = trace
-        self.path = path
+        self.snap_dir = path
     def check_call(self, args):
         cmd_str = " ".join(args)
         self.trace(cmd_str)
@@ -191,18 +191,18 @@ class Operations:
     def unsnap(self, dir):
         import subprocess
         args = ["btrfs", "subvolume", "delete",
-                os.path.join(self.path, dir)]
+                os.path.join(self.snap_dir, dir)]
         self.check_call(args)
     def freespace(self):
-        return freespace(self.path)
+        return freespace(self.snap_dir)
     def listdir(self):
-        return [d for d in os.listdir(self.path)
+        return [d for d in os.listdir(self.snap_dir)
                 if timef(d)]
-    def snap(self, path):
+    def snap(self, subvol_path):
         import subprocess
         args = ["btrfs", "subvolume", "snapshot",
-                path,
-                os.path.join(self.path, self.datestamp())]
+                subvol_path,
+                os.path.join(self.snap_dir, self.datestamp())]
         self.check_call(args)
     def datestamp(self):
         return time.strftime(DATE_FORMAT, time.gmtime(None))
@@ -231,8 +231,8 @@ class FakeOperations(Operations):
         self.snap_space = snap_space
         self.time_now = time_now
 
-    def snap(self, path):
-        self.trace("snap(%s)", path)
+    def snap(self, subvol_path):
+        self.trace("snap(%s)", subvol_path)
         self.dirs[self.datestamp()] = self.snap_space
 
     def unsnap(self, dir):
@@ -253,13 +253,13 @@ class FakeOperations(Operations):
             return self.time_now
 
 class DryrunOperations(Operations):
-    def snap(self, path):
-        path = os.path.join(self.path, self.datestamp())
+    def snap(self, subvol_path):
+        path = os.path.join(self.snap_dir, self.datestamp())
         if os.path.commonprefix((path, os.getcwd())) != '/':
             path = os.path.relpath(path)
         print(Fore.GREEN + "+ " + path + Fore.RESET)
     def unsnap(self, dir):
-        path = os.path.join(self.path, dir)
+        path = os.path.join(self.snap_dir, dir)
         if os.path.commonprefix((path, os.getcwd())) != '/':
             path = os.path.relpath(path)
         print(Fore.RED + "- " + path + Fore.RESET)
@@ -583,7 +583,7 @@ def main(argv):
     if pa.do_snap:
         if pa.subvolume == None:
             parser.error("--do-snap requires subvolume")
-        operations.snap(path=pa.subvolume)
+        operations.snap(subvol_path=pa.subvolume)
 
     if pa.do_clean:
         cleandir(operations=operations, targets=pa)
