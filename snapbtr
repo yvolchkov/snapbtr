@@ -103,12 +103,12 @@ def _sorted_value(dirs):
     # Keep going as long as there is anything to remove
     while len(candidates) > 1:
         # Get candidates ordered by timestamp (as v is monitonic in timestamp)
-        remain = sorted((v,k) for k,v in candidates.iteritems())
+        remain = sorted((v, k) for k, v in candidates.iteritems())
         # Find the "amount of information we loose by deleting the
         # latest of the pair"
         diffs = list((to_tf - frm_tf, frm, to)
-                               for ((frm_tf, frm), (to_tf, to))
-                               in poles(remain))
+                     for ((frm_tf, frm), (to_tf, to))
+                     in poles(remain))
         # Select the least important one
         mdiff, mfrm, mto = min(diffs)
 
@@ -123,7 +123,7 @@ def freespace(path):
     return st[statvfs.F_BFREE] * st[statvfs.F_FRSIZE]
 
 class Operations:
-    def __init__(self, path, trace = None):
+    def __init__(self, path, trace=None):
         self.tracef = trace
         self.path = path
     def check_call(self, args):
@@ -164,11 +164,11 @@ class Operations:
 class FakeOperations(Operations):
     def __init__(self,
                  path,
-                 trace = None,
-                 dirs = None,
-                 space = None,
-                 snap_space = None):
-        Operations.__init__(self, path = path, trace = trace)
+                 trace=None,
+                 dirs=None,
+                 space=None,
+                 snap_space=None):
+        Operations.__init__(self, path=path, trace=trace)
         if dirs is None:
             dirs = {}
         if space is None:
@@ -223,15 +223,15 @@ def cleandir(operations, targets):
 
         if keep_backups is not None:
             if dirs_len <= keep_backups:
-                print "Reached number of backups to keep: ", dirs_len
+                print("Reached number of backups to keep: ", dirs_len)
                 break
 
         if target_fsp is not None:
             fsp = operations.freespace()
             #print "+++ ", fsp, target_fsp, fsp >= target_fsp
             if fsp >= target_fsp:
-                if (was_above_target_freespace
-                    or was_above_target_freespace is None):
+                if (was_above_target_freespace or
+                        was_above_target_freespace is None):
                     trace("Satisfied freespace target: %s with %s",
                           fsp, target_fsp)
                     was_above_target_freespace = False
@@ -245,7 +245,7 @@ def cleandir(operations, targets):
         if target_backups is not None:
             if dirs_len <= target_backups:
                 if (was_above_target_backups or
-                    was_above_target_backups is None):
+                        was_above_target_backups is None):
                     trace("Satisfied target number of backups: %s with %s",
                           target_backups, dirs_len)
                     was_above_target_backups = False
@@ -269,11 +269,11 @@ def cleandir(operations, targets):
 
 def default_trace(fmt, *args, **kwargs):
     if args is not None:
-        print fmt % args
+        print(fmt % args)
     elif kwargs is not None:
-        print fmt % kwargs
+        print(fmt % kwargs)
     else:
-        print fmt
+        print(fmt)
 
 def main(argv):
     def args():
@@ -286,7 +286,8 @@ def main(argv):
                     None: 0,
                     'K': 1,
                     'M': 2,
-                    'G': 3 }
+                    'G': 3
+                }
                 form = "([0-9]+)(%s)?" % \
                     "|".join(x for x in mods.iterkeys() if x is not None)
                 m = re.match(form, target_str, re.IGNORECASE)
@@ -382,28 +383,28 @@ SIZE is #bytes, or given with K, M, G or T respectively for kilo, ...''')
                      "  --target-backups")
 
     if pa.test:
-        operations = FakeOperations(path = pa.path,
-                                    trace = trace,
-                                    dirs = {
-                '20101201-000000': 0,
-                '20101201-010000': 1,
-                '20101201-020000': 2,
-                '20101201-030000': 3,
-                '20101201-040000': 4,
-                '20101201-050000': 5,
-                '20101201-060000': 6,
-                '20101201-070000': 7,
-                '20101201-080000': 8,
-                },
-                                    space = 5)
+        operations = FakeOperations(path=pa.path,
+                                    trace=trace,
+                                    dirs={
+                                        '20101201-000000': 0,
+                                        '20101201-010000': 1,
+                                        '20101201-020000': 2,
+                                        '20101201-030000': 3,
+                                        '20101201-040000': 4,
+                                        '20101201-050000': 5,
+                                        '20101201-060000': 6,
+                                        '20101201-070000': 7,
+                                        '20101201-080000': 8,
+                                    },
+                                    space=5)
 
     else:
-        operations = Operations(path = pa.path, trace = trace)
+        operations = Operations(path=pa.path, trace=trace)
 
     if pa.snap:
-        operations.snap(path = pa.snap)
+        operations.snap(path=pa.snap)
 
-    cleandir(operations = operations, targets = pa)
+    cleandir(operations=operations, targets=pa)
 
 if "__main__" == __name__:
     sys.exit(main(sys.argv))
