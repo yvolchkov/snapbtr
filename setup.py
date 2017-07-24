@@ -8,6 +8,9 @@ setup(
 
     author = 'Yuri Volchkov',
     author_email = 'yuri.volchkov@gmail.com',
+    install_requires=[
+        'colorama',
+    ],
 
     classifiers=[
         'Development Status :: 3 - Alpha',
