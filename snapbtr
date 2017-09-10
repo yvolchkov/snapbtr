@@ -24,6 +24,8 @@ import re, math, time, os, os.path, sys, shutil, stat, statvfs
 from colorama import Fore, Back, Style
 from datetime import datetime, timedelta
 
+VERSION='0.1'
+
 DATE_FORMAT = '%Y%m%d-%H%M%S' # date format used for directories to clean
 DEFAULT_KEEP_BACKUPS = 2
 
@@ -520,6 +522,9 @@ def main(argv):
                             default=0, type=int,
                             help='''Backups which are taken within
                             DAYS_N last days are untouchable''')
+
+        parser.add_argument('-V', '--version', action='version',
+                            version=VERSION)
 
         # TODO:
         # The target-freespace makes little sense in its current
