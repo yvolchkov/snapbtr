@@ -61,6 +61,12 @@ Do the same, but create the snapshot at first
 sudo python2 setup.py install
 ```
 
+or
+
+```
+sudo pip install snapbtr
+```
+
 # Authors
 
 * Helge Jensen <hej@actua.dk>
