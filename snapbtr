@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python3.7
 #
 # snapbtr is a small utility that keeps snapshots of btrfs filesystems.
 # Copyright (C) 2017 Yuri Volchkov <yuri.volchkov@gmail.com>
@@ -20,9 +20,11 @@
 # Snapbtr is originally written by Helge Jensen. It is re-published
 # under the GPLv3 with his consent and blessing.
 
-import re, math, time, os, os.path, sys, shutil, stat, statvfs
+import re, math, time, os, os.path, sys, shutil, stat
 from colorama import Fore, Back, Style
 from datetime import datetime, timedelta
+
+VERSION='0.1'
 
 DATE_FORMAT = '%Y%m%d-%H%M%S' # date format used for directories to clean
 DEFAULT_KEEP_BACKUPS = 2
@@ -65,8 +67,8 @@ def test_quads(items):
 def quads(items):
     rest = iter(items)
     before = None
-    a = rest.next()
-    b = rest.next()
+    a = rest.__next__()
+    b = rest.__next__()
     for next in rest:
         yield (before, a, b, next)
         before = a
@@ -92,14 +94,14 @@ def _sorted_value(dirs):
     def poles(items):
         """Yield (items[0], items[1]), (items[1], items[2]), ... (items[n-1], items[n])"""
         rest = iter(items)
-        last = rest.next()
+        last = rest.__next__()
         for next in rest:
             yield (last, next)
             last = next
     def all_but_last(items):
         """Yield items[0], ..., items[n-1]"""
         rest = iter(items)
-        last = rest.next()
+        last = rest.__next__()
         for x in rest:
             yield last
             last = x
@@ -113,7 +115,7 @@ def _sorted_value(dirs):
     # Keep going as long as there is anything to remove
     while len(candidates) > 2:
         # Get candidates ordered by timestamp (as v is monitonic in timestamp)
-        remain = sorted((v, k) for k, v in candidates.iteritems())
+        remain = sorted((v, k) for k, v in candidates.items())
         newest_element = remain[-1][1]
         # Find the "amount of information we loose by deleting the
         # latest of the pair"
@@ -211,7 +213,11 @@ class Operations:
                 subvol_path, new_snap_path]
         self.check_call(args)
     def datestamp(self):
-        return time.strftime(DATE_FORMAT, time.gmtime(None))
+        if USE_UTC:
+            return time.strftime(DATE_FORMAT, time.gmtime(None))
+        else:
+            return time.strftime(DATE_FORMAT, time.localtime(None))
+
     def trace(self, *args, **kwargs):
         f = self.tracef
         if f:
@@ -340,7 +346,7 @@ SystemExit: Number of backups is less then requested to keep
     targets = targets_container(keep, free, backups, preserve)
 
     cleandir(ops, targets)
-    dirs_remained = sorted((i) for (i, j) in ops.dirs.iteritems())
+    dirs_remained = sorted((i) for (i, j) in ops.dirs.items())
     new_free = ops.space
     return (new_free, dirs_remained)
 
@@ -450,7 +456,7 @@ def cleandir(operations, targets):
             victims_list = sorted_value(dirs)
 
         try:
-            next_del = victims_list.next()
+            next_del = victims_list.__next__()
         except StopIteration:
             trace("Can not satisfy targets - no more victims left")
             break
@@ -504,6 +510,10 @@ def main(argv):
         parser.add_argument('-s', '--do-snap', action='store_true',
                             default=False)
 
+        parser.add_argument('-l', '--local-time', action='store_true',
+                            help="Use local time instead of UTC",
+                            default=False)
+
         parser.add_argument('-b', '--target-backups',
                             metavar='', type=int,
                             help=
@@ -520,6 +530,9 @@ def main(argv):
                             default=0, type=int,
                             help='''Backups which are taken within
                             DAYS_N last days are untouchable''')
+
+        parser.add_argument('-V', '--version', action='version',
+                            version=VERSION)
 
         # TODO:
         # The target-freespace makes little sense in its current
@@ -564,8 +577,9 @@ def main(argv):
 
         return pa, parser
 
-
     pa, parser = args()
+    global USE_UTC
+    USE_UTC = not pa.local_time
 
     if pa.verbose:
         trace = default_trace
