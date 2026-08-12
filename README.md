@@ -1,3 +1,5 @@
+
+
 # snapbtr
 
 snapbtr is a small utility that keeps snapshots of btrfs filesystems.
@@ -18,7 +20,7 @@ selecting snapshots to remove.
 Using --preserve-days, you can ensure that the most recent snapshots,
 which are taken within last N days are not deleted.
 
-snapnbtr will keep backups with exponentially increasing distance as
+snapbtr will keep backups with exponentially increasing distance as
 you go back in time. It does this by selecting snapshots to remove as
 follows.
 
